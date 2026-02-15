@@ -3,7 +3,7 @@ import { AuthWrapper } from "./components/AuthWrapper";
 import { Dashboard } from "./components/Dashboard";
 import { GameBoard } from "./components/GameBoard";
 import { WaitingScreen } from "./components/WaitingScreen";
-// import React from "react";
+import { ErrorPage } from "./components/ErrorPage";
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +21,10 @@ export const router = createBrowserRouter([
       {
         path: "waiting",
         Component: WaitingScreen,
+      },
+      {
+        path: "*",
+        Component: ErrorPage,
       },
     ],
   },

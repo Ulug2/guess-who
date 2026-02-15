@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight, Upload, Save, Trash2, Plus } from "lucide
 import { getGameboard, saveGameboard } from "../lib/gameboard";
 import { uploadGameboardImage } from "../lib/storage";
 import { resizeImageFile } from "../lib/resizeImage";
+import { useLanguage } from "../contexts/LanguageContext";
 import type { GameboardCharacter } from "../lib/types";
 
 interface CustomizeGameboardModalProps {
@@ -27,6 +28,7 @@ export function CustomizeGameboardModal({
   onClose,
   userId,
 }: CustomizeGameboardModalProps) {
+  const { t } = useLanguage();
   const [characters, setCharacters] = useState<GameboardCharacter[]>(buildInitialCharacters());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -51,7 +53,7 @@ export function CustomizeGameboardModal({
           setCharacters(merged);
         }
       })
-      .catch(() => setError("Could not load board."))
+      .catch(() => setError(t("couldNotLoadBoard")))
       .finally(() => setLoading(false));
   }, [open, userId]);
 
@@ -95,7 +97,7 @@ export function CustomizeGameboardModal({
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Upload failed.";
       const hint = msg.includes("Bucket not found") || msg.includes("bucket") ? " Create the Storage bucket 'gameboard-images' in Supabase Dashboard (Storage) and run the RLS policies (see supabase/rls_policies.sql)." : "";
-      setError(`Upload failed: ${msg}.${hint}`);
+      setError(`${t("uploadFailed")}: ${msg}.${hint}`);
     } finally {
       setUploading(false);
     }
@@ -111,25 +113,41 @@ export function CustomizeGameboardModal({
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
     } catch {
-      setError("Could not save board.");
+      setError(t("couldNotSave"));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (!userId) return;
+    let newCharacters: GameboardCharacter[];
+    let nextIndex: number;
     if (characters.length > 24) {
-      const newCharacters = characters.filter((_, i) => i !== currentIndex);
-      setCharacters(newCharacters);
-      setCurrentIndex(Math.min(currentIndex, newCharacters.length - 1));
+      newCharacters = characters.filter((_, i) => i !== currentIndex);
+      nextIndex = Math.min(currentIndex, newCharacters.length - 1);
     } else {
-      const newCharacters = [...characters];
+      newCharacters = [...characters];
       newCharacters[currentIndex] = {
         ...currentCharacter,
         name: "",
         imageUrl: null,
       };
-      setCharacters(newCharacters);
+      nextIndex = currentIndex;
+    }
+    setCharacters(newCharacters);
+    setCurrentIndex(nextIndex);
+
+    setError("");
+    setSaving(true);
+    try {
+      await saveGameboard(userId, newCharacters);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+    } catch {
+      setError(t("couldNotSave"));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -152,9 +170,9 @@ export function CustomizeGameboardModal({
       <div className="relative w-full max-w-md bg-gray-900 rounded-3xl shadow-2xl border-2 border-[#FFD700] overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-[#8B0000] to-[#B22222] p-6 flex items-center justify-between border-b-2 border-[#FFD700]">
           <div>
-            <h2 className="text-2xl font-bold text-white">Customize Board</h2>
+            <h2 className="text-2xl font-bold text-white">{t("customBoardTitle")}</h2>
             <p className="text-white/80 text-sm mt-1">
-              {filledCount}/{characters.length} characters added
+              {filledCount}/{characters.length} {t("charactersAdded")}
             </p>
           </div>
           <button
@@ -177,7 +195,7 @@ export function CustomizeGameboardModal({
           <>
             <div className="bg-gray-800 p-4 border-b border-gray-700">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-300 text-sm font-semibold">Progress</span>
+                <span className="text-gray-300 text-sm font-semibold">{t("progress")}</span>
                 <span className="text-[#FFD700] text-sm font-semibold">
                   {Math.round((filledCount / 24) * 100)}%
                 </span>
@@ -189,7 +207,7 @@ export function CustomizeGameboardModal({
                 />
               </div>
               <p className="text-gray-400 text-xs mt-2">
-                Minimum 24 required • Maximum {maxCharacters} allowed
+                {t("minimum24Max")} {maxCharacters} {t("allowed")}
               </p>
             </div>
 
@@ -203,7 +221,7 @@ export function CustomizeGameboardModal({
                   <ChevronLeft size={24} />
                 </button>
                 <p className="text-gray-300 font-semibold">
-                  Character {currentIndex + 1} of {characters.length}
+                  {t("characterOf")} {currentIndex + 1} {t("of")} {characters.length}
                 </p>
                 <button
                   onClick={handleNext}
@@ -225,17 +243,17 @@ export function CustomizeGameboardModal({
                   ) : (
                     <div className="text-center text-gray-500">
                       <Upload size={48} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No image uploaded</p>
+                      <p className="text-sm">{t("noImageUploaded")}</p>
                     </div>
                   )}
                 </div>
                 <div className="mb-4">
-                  <label className="block text-gray-300 mb-2 font-semibold">Character Name</label>
+                  <label className="block text-gray-300 mb-2 font-semibold">{t("characterName")}</label>
                   <input
                     type="text"
                     value={currentCharacter.name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="Enter name..."
+                    placeholder={t("enterName")}
                     className="w-full bg-gray-700 border-2 border-gray-600 focus:border-[#FFD700] rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all"
                     maxLength={20}
                   />
@@ -250,24 +268,27 @@ export function CustomizeGameboardModal({
                   />
                   <div className="flex items-center justify-center gap-2">
                     <Upload size={20} />
-                    <span>{uploading ? "Uploading…" : "Upload Image"}</span>
+                    <span>{uploading ? t("uploading") : t("uploadImage")}</span>
                   </div>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
+                    type="button"
                     onClick={handleSave}
-                    disabled={!currentCharacter.name || !currentCharacter.imageUrl || saving}
+                    disabled={filledCount < 24 || saving}
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white py-3 rounded-xl font-semibold transition-all duration-200 active:scale-95 disabled:scale-100 flex items-center justify-center gap-2"
                   >
                     <Save size={18} />
-                    {saving ? "Saving…" : "Save"}
+                    {saving ? t("saving") : t("save")}
                   </button>
                   <button
+                    type="button"
                     onClick={handleDelete}
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white py-3 rounded-xl font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+                    disabled={saving}
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:from-gray-700 disabled:opacity-70 text-white py-3 rounded-xl font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={18} />
-                    {characters.length > 24 ? "Delete" : "Clear"}
+                    {characters.length > 24 ? t("delete") : t("clear")}
                   </button>
                 </div>
               </div>
@@ -278,7 +299,7 @@ export function CustomizeGameboardModal({
                   className="w-full bg-gray-800 hover:bg-gray-700 border-2 border-dashed border-gray-600 hover:border-[#FFD700] text-gray-400 hover:text-white py-4 rounded-xl font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Plus size={20} />
-                  Add Another Character ({characters.length}/{maxCharacters})
+                  {t("addAnotherCharacter")} ({characters.length}/{maxCharacters})
                 </button>
               )}
             </div>
@@ -294,7 +315,7 @@ export function CustomizeGameboardModal({
                 clipRule="evenodd"
               />
             </svg>
-            <span className="font-semibold">Board saved!</span>
+            <span className="font-semibold">{t("boardSaved")}</span>
           </div>
         )}
       </div>

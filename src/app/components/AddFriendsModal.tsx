@@ -1,8 +1,8 @@
-// import React from "react";
 import { useState } from "react";
 import { X, Search, UserPlus, Check } from "lucide-react";
 import { searchProfilesByUsername } from "../lib/profiles";
 import { sendFriendRequest, hasPendingRequest, areFriends } from "../lib/friends";
+import { useLanguage } from "../contexts/LanguageContext";
 import type { Profile } from "../lib/types";
 
 interface AddFriendsModalProps {
@@ -12,6 +12,7 @@ interface AddFriendsModalProps {
 }
 
 export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps) {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResult, setSearchResult] = useState<Profile | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -30,13 +31,13 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
       const profiles = await searchProfilesByUsername(q, userId);
       if (profiles.length === 0) {
         setSearchResult(null);
-        setError("No user found with that username.");
+        setError(t("noUserFound"));
       } else {
         setSearchResult(profiles[0]);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Search failed.";
-      setError(msg.includes("profiles") && msg.includes("exist") ? "Database not set up. Run the Supabase migration (see README)." : `Search failed: ${msg}`);
+      setError(msg.includes("profiles") && msg.includes("exist") ? t("databaseNotSetUp") : `${t("searchFailed")}: ${msg}`);
       setSearchResult(null);
     } finally {
       setIsSearching(false);
@@ -49,12 +50,12 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
     try {
       const alreadyFriends = await areFriends(userId, searchResult.id);
       if (alreadyFriends) {
-        setError("You are already friends.");
+        setError(t("alreadyFriends"));
         return;
       }
       const pending = await hasPendingRequest(userId, searchResult.id);
       if (pending) {
-        setError("Friend request already sent.");
+        setError(t("requestAlreadySent"));
         return;
       }
       await sendFriendRequest(userId, searchResult.id);
@@ -65,7 +66,7 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
         setRequestSent(false);
       }, 1500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not send request.");
+      setError(e instanceof Error ? e.message : t("couldNotSendRequest"));
     }
   };
 
@@ -77,7 +78,7 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
       />
       <div className="relative w-full max-w-md bg-gray-900 rounded-3xl shadow-2xl border-2 border-[#FFD700] overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-[#FFD700] to-[#FFC107] p-6 flex items-center justify-between border-b-2 border-[#8B0000]">
-          <h2 className="text-2xl font-bold text-[#8B0000]">Add Friends</h2>
+          <h2 className="text-2xl font-bold text-[#8B0000]">{t("addFriendsModalTitle")}</h2>
           <button
             onClick={onClose}
             className="text-[#8B0000]/80 hover:text-[#8B0000] transition-colors p-2 hover:bg-[#8B0000]/10 rounded-full active:scale-95"
@@ -87,14 +88,14 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
         </div>
         <div className="p-6 space-y-6">
           <div>
-            <label className="block text-gray-300 mb-2">Search by username</label>
+            <label className="block text-gray-300 mb-2">{t("searchByUsername")}</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Enter username..."
+                placeholder={t("enterUsernameSearch")}
                 className="flex-1 bg-gray-800 border-2 border-gray-700 focus:border-[#FFD700] rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all"
               />
               <button
@@ -132,7 +133,7 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
                   )}
                   <div className="flex-1">
                     <p className="text-white font-bold text-lg">{searchResult.username}</p>
-                    <p className="text-gray-400 text-sm">Username</p>
+                    <p className="text-gray-400 text-sm">{t("username")}</p>
                   </div>
                 </div>
                 <button
@@ -146,12 +147,12 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
                   {requestSent ? (
                     <>
                       <Check size={20} />
-                      Friend Request Sent
+                      {t("friendRequestSent")}
                     </>
                   ) : (
                     <>
                       <UserPlus size={20} />
-                      Add Friend
+                      {t("addFriend")}
                     </>
                   )}
                 </button>
@@ -160,14 +161,14 @@ export function AddFriendsModal({ open, onClose, userId }: AddFriendsModalProps)
               <div className="flex items-center justify-center h-[200px] text-gray-400 text-center">
                 <div>
                   <Search size={48} className="mx-auto mb-3 opacity-50" />
-                  <p>Search by username to add friends</p>
+                  <p>{t("searchToAddFriends")}</p>
                 </div>
               </div>
             )}
           </div>
           <div className="bg-gray-800/50 border border-[#FFD700]/30 rounded-xl p-4">
             <p className="text-gray-300 text-sm">
-              💡 <span className="font-semibold">Tip:</span> Search for your friend&apos;s username (they must have an account).
+              💡 {t("tipSearchUsername")}
             </p>
           </div>
         </div>

@@ -4,9 +4,11 @@ import { CharacterCard } from "./CharacterCard";
 import { LogOut, Loader2 } from "lucide-react";
 import { endChallenge, subscribeToChallenge, getChallenge, setChallengeGameCharacters } from "../lib/challenges";
 import { getGameboard } from "../lib/gameboard";
+import { useLanguage } from "../contexts/LanguageContext";
 import type { GameboardCharacter } from "../lib/types";
 
 const MIN_PLAYABLE = 24;
+const BOARD_SIZE = 24;
 
 /** Character with imageUrl required (for display) */
 type DisplayCharacter = GameboardCharacter & { imageUrl: string };
@@ -15,14 +17,23 @@ function toDisplayCharacters(chars: GameboardCharacter[]): DisplayCharacter[] {
   return chars.filter((c): c is DisplayCharacter => !!c.name && !!c.imageUrl);
 }
 
+/** Pick exactly BOARD_SIZE characters for the board; if user has more, choose randomly. */
+function pickBoardCharacters<T>(filled: T[]): T[] {
+  if (filled.length <= BOARD_SIZE) return filled;
+  const shuffled = [...filled].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, BOARD_SIZE);
+}
+
 export function GameBoard() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const challengeId = searchParams.get("challengeId");
   const { user } = useOutletContext<{ user: { id: string; username: string } }>();
   const [characters, setCharacters] = useState<DisplayCharacter[]>([]);
   const [loading, setLoading] = useState(true);
   const [waitingForBoard, setWaitingForBoard] = useState(false);
+  const [isChallenger, setIsChallenger] = useState<boolean | null>(null);
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [gameEndedByOpponent, setGameEndedByOpponent] = useState(false);
@@ -35,15 +46,19 @@ export function GameBoard() {
 
     if (isChallenger) {
       const myBoard = await getGameboard(user.id);
-      const display = toDisplayCharacters(myBoard);
-      if (display.length >= MIN_PLAYABLE) {
+      const filled = myBoard.filter((c): c is GameboardCharacter & { imageUrl: string } => !!c.name && !!c.imageUrl);
+      const boardChars = pickBoardCharacters(filled);
+      const display = toDisplayCharacters(boardChars);
+      if (filled.length >= MIN_PLAYABLE) {
         setCharacters(display);
         if (!challenge.game_characters || challenge.game_characters.length === 0) {
-          await setChallengeGameCharacters(challengeId, user.id, myBoard.filter((c) => c.name && c.imageUrl));
+          await setChallengeGameCharacters(challengeId, user.id, boardChars);
         }
       }
-      return { challenge, isChallenger, display };
+      setIsChallenger(true);
+      return { challenge, isChallenger: true, display };
     } else {
+      setIsChallenger(false);
       const stored = challenge.game_characters;
       if (stored && stored.length >= MIN_PLAYABLE) {
         setCharacters(toDisplayCharacters(stored));
@@ -51,7 +66,7 @@ export function GameBoard() {
       } else {
         setWaitingForBoard(true);
       }
-      return { challenge, isChallenger, display: stored ? toDisplayCharacters(stored) : [] };
+      return { challenge, isChallenger: false, display: stored ? toDisplayCharacters(stored) : [] };
     }
   }, [challengeId, user?.id]);
 
@@ -61,6 +76,7 @@ export function GameBoard() {
     if (challengeId) {
       setLoading(true);
       setWaitingForBoard(false);
+      setIsChallenger(null);
       loadChallengeAndBoard().then((result) => {
         setLoading(false);
         if (!result && challengeId) {
@@ -68,8 +84,11 @@ export function GameBoard() {
         }
       });
     } else {
+      setIsChallenger(null);
       getGameboard(user.id).then((board) => {
-        setCharacters(toDisplayCharacters(board));
+        const filled = toDisplayCharacters(board);
+        const boardChars = pickBoardCharacters(filled);
+        setCharacters(boardChars);
         setLoading(false);
       });
     }
@@ -125,13 +144,13 @@ export function GameBoard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-gray-800 rounded-2xl border-2 border-[#FFD700] p-8">
-          <h1 className="text-2xl font-bold text-white">Game ended</h1>
-          <p className="text-gray-300">The other player ended the game.</p>
+          <h1 className="text-2xl font-bold text-white">{t("gameEnded")}</h1>
+          <p className="text-gray-300">{t("otherPlayerEnded")}</p>
           <button
             onClick={() => navigate("/")}
             className="bg-gradient-to-r from-[#8B0000] to-[#B22222] text-white px-6 py-3 rounded-xl font-semibold"
           >
-            Back to Dashboard
+            {t("backToDashboard")}
           </button>
         </div>
       </div>
@@ -143,7 +162,7 @@ export function GameBoard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-12 h-12 text-[#FFD700] animate-spin" />
-          <p className="text-gray-300">Loading game…</p>
+          <p className="text-gray-300">{t("loadingGame")}</p>
         </div>
       </div>
     );
@@ -154,28 +173,32 @@ export function GameBoard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-gray-800 rounded-2xl border-2 border-[#FFD700] p-8">
           <Loader2 className="w-12 h-12 text-[#FFD700] animate-spin mx-auto" />
-          <h1 className="text-xl font-bold text-white">Waiting for challenger&apos;s board</h1>
-          <p className="text-gray-300 text-sm">The other player is setting up the game. This will update automatically.</p>
+          <h1 className="text-xl font-bold text-white">{t("waitingForChallengerBoard")}</h1>
+          <p className="text-gray-300 text-sm">{t("updateAutomatically")}</p>
         </div>
       </div>
     );
   }
 
-  if (characters.length < MIN_PLAYABLE) {
+  // Only show "not enough characters" when user is challenger or solo — not when accepting a challenge (opponent plays with challenger's board).
+  const showNotEnoughCharacters =
+    !loading &&
+    characters.length < MIN_PLAYABLE &&
+    (challengeId === null ? true : isChallenger === true);
+
+  if (showNotEnoughCharacters) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center space-y-6 bg-gray-800 rounded-2xl border-2 border-[#FFD700] p-8">
-          <h1 className="text-xl font-bold text-white">Not enough characters</h1>
+          <h1 className="text-xl font-bold text-white">{t("notEnoughCharacters")}</h1>
           <p className="text-gray-300 text-sm">
-            {challengeId
-              ? "The challenger needs at least 24 characters on their board to start."
-              : "Add at least 24 characters in Customize Gameboard to play."}
+            {challengeId ? t("need24ToChallenge") : t("add24ToPlay")}
           </p>
           <button
             onClick={() => navigate("/")}
             className="bg-gradient-to-r from-[#8B0000] to-[#B22222] text-white px-6 py-3 rounded-xl font-semibold"
           >
-            Back to Dashboard
+            {t("backToDashboard")}
           </button>
         </div>
       </div>
@@ -183,10 +206,10 @@ export function GameBoard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 pb-8">
-      <div className="flex items-center justify-between mb-6 pt-2">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 pb-8 flex flex-col">
+      <div className="flex items-center justify-between mb-6 pt-2 shrink-0">
         <div className="bg-[#8B0000] text-white px-4 py-2 rounded-lg shadow-lg border-2 border-[#FFD700]">
-          <span className="opacity-75">Player: </span>
+          <span className="opacity-75">{t("player")} </span>
           <span className="font-bold">{user.username}</span>
         </div>
         <button
@@ -194,34 +217,40 @@ export function GameBoard() {
           className="bg-gradient-to-r from-[#8B0000] to-[#B22222] hover:from-[#A52A2A] hover:to-[#DC143C] text-white px-5 py-2 rounded-lg transition-all duration-200 active:scale-95 flex items-center gap-2 border-2 border-[#FFD700] shadow-lg min-h-[44px]"
         >
           <LogOut size={18} />
-          <span className="font-semibold">End Game</span>
+          <span className="font-semibold">{t("endGame")}</span>
         </button>
       </div>
 
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-white mb-1">Guess Who?</h1>
-        <p className="text-gray-400">Tap to flip cards • Long press to select your character</p>
+      <div className="text-center mb-6 shrink-0">
+        <h1 className="text-3xl font-bold text-white mb-1">{t("guessWho")}</h1>
+        <p className="text-gray-400">{t("tapFlipLongPress")}</p>
       </div>
 
-      <div className="max-w-4xl mx-auto">
-        <div className="grid grid-cols-4 gap-3 sm:gap-4">
-          {characters.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              isFlipped={flippedCards.has(character.id)}
-              isSelected={selectedCard === character.id}
-              onFlip={() => handleCardFlip(character.id)}
-              onSelect={() => handleCardSelect(character.id)}
-            />
-          ))}
+      {/* Scrollable card grid with wide right gutter for thumb scrolling */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-14"
+        style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+      >
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-4 gap-3 sm:gap-4">
+            {characters.map((character) => (
+              <CharacterCard
+                key={character.id}
+                character={character}
+                isFlipped={flippedCards.has(character.id)}
+                isSelected={selectedCard === character.id}
+                onFlip={() => handleCardFlip(character.id)}
+                onSelect={() => handleCardSelect(character.id)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
       {selectedCard === null && (
         <div className="mt-6 max-w-md mx-auto bg-gray-800/50 border border-[#FFD700]/30 rounded-xl p-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
           <p className="text-gray-300 text-sm">
-            <span className="font-semibold text-[#FFD700]">Select your character</span> by holding down on a card, then eliminate other cards by tapping them!
+            <span className="font-semibold text-[#FFD700]">{t("selectYourCharacter")}</span> {t("selectCharacterHint")}
           </p>
         </div>
       )}
@@ -229,10 +258,10 @@ export function GameBoard() {
       {selectedCard && (
         <div className="mt-6 max-w-md mx-auto bg-gradient-to-r from-[#8B0000] to-[#B22222] border-2 border-[#FFD700] rounded-xl p-4 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
           <p className="text-white font-semibold">
-            Your character is {characters.find((c) => c.id === selectedCard)?.name}!
+            {t("yourCharacterIs")} {characters.find((c) => c.id === selectedCard)?.name}!
           </p>
           <p className="text-gray-200 text-sm mt-1">
-            Don&apos;t let your opponent guess who it is!
+            {t("dontLetOpponentGuess")}
           </p>
         </div>
       )}

@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { LogIn, UserPlus, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import React from "react";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface AuthScreenProps {
   onAuthSuccess: (userId: string, username: string) => void;
 }
 
 export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
+  const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +31,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         });
 
         if (signInError) {
-          setError("Invalid username or password");
+          setError(t("invalidCredentials"));
           setIsLoading(false);
           return;
         }
@@ -52,9 +53,9 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
         if (signUpError) {
           if (signUpError.message?.toLowerCase().includes("already registered") || signUpError.message?.toLowerCase().includes("already exists")) {
-            setError("Username already taken. Try logging in.");
+            setError(t("usernameTaken"));
           } else {
-            setError(signUpError.message || "Signup failed");
+            setError(signUpError.message || t("signupFailed"));
           }
           setIsLoading(false);
           return;
@@ -70,18 +71,16 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
         // No session = email confirmation is required (fake email can't confirm)
         if (signUpData.user && !signUpData.session) {
-          setError(
-            "Account created but email confirmation is on. In Supabase Dashboard go to Authentication → Providers → Email and turn off “Confirm email” so you can sign in with username only."
-          );
+          setError(t("accountCreatedConfirm"));
           setIsLoading(false);
           return;
         }
 
-        setError("Signup failed. Try again.");
+        setError(t("signupTryAgain"));
       }
     } catch (error) {
       console.error("Auth error:", error);
-      setError("An error occurred. Please try again.");
+      setError(t("errorOccurred"));
       setIsLoading(false);
     }
   };
@@ -91,10 +90,10 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       <div className="w-full max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
-          <h1 className="text-6xl font-bold text-white mb-4">Guess Who?</h1>
+          <h1 className="text-6xl font-bold text-white mb-4">{t("guessWho")}</h1>
           <div className="h-1.5 w-32 bg-gradient-to-r from-[#8B0000] via-[#FFD700] to-[#8B0000] mx-auto rounded-full"></div>
           <p className="text-gray-400 mt-4">
-            Challenge friends in the classic guessing game
+            {t("challengeSubtitle")}
           </p>
         </div>
 
@@ -112,7 +111,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 : "text-gray-400 hover:text-white"
                 }`}
             >
-              Login
+              {t("login")}
             </button>
             <button
               onClick={() => {
@@ -124,7 +123,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 : "text-gray-400 hover:text-white"
                 }`}
             >
-              Sign Up
+              {t("signUp")}
             </button>
           </div>
 
@@ -133,13 +132,13 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Username */}
             <div>
               <label className="block text-gray-300 mb-2 font-semibold">
-                Username
+                {t("username")}
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder={t("enterUsername")}
                 required
                 className="w-full bg-gray-800 border-2 border-gray-700 focus:border-[#FFD700] rounded-xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all"
               />
@@ -148,14 +147,14 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Password */}
             <div>
               <label className="block text-gray-300 mb-2 font-semibold">
-                Password
+                {t("password")}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder={t("enterPassword")}
                   required
                   minLength={6}
                   className="w-full bg-gray-800 border-2 border-gray-700 focus:border-[#FFD700] rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-500 outline-none transition-all"
@@ -170,7 +169,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               </div>
               {!isLogin && (
                 <p className="text-gray-400 text-xs mt-1">
-                  Must be at least 6 characters
+                  {t("mustBe6Chars")}
                 </p>
               )}
             </div>
@@ -191,17 +190,17 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
-                  <span>Please wait...</span>
+                  <span>{t("pleaseWait")}</span>
                 </>
               ) : isLogin ? (
                 <>
                   <LogIn size={20} />
-                  <span>Login</span>
+                  <span>{t("login")}</span>
                 </>
               ) : (
                 <>
                   <UserPlus size={20} />
-                  <span>Create Account</span>
+                  <span>{t("createAccount")}</span>
                 </>
               )}
             </button>
@@ -210,7 +209,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           {/* Info Text */}
           <div className="mt-6 text-center">
             <p className="text-gray-500 text-sm">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              {isLogin ? t("dontHaveAccount") : t("alreadyHaveAccount")}
               <button
                 onClick={() => {
                   setIsLogin(!isLogin);
@@ -218,7 +217,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 }}
                 className="text-[#FFD700] hover:text-[#FFE135] font-semibold transition-colors"
               >
-                {isLogin ? "Sign up" : "Login"}
+                {isLogin ? t("signUpLink") : t("loginLink")}
               </button>
             </p>
           </div>
@@ -226,7 +225,7 @@ export function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
         {/* Footer */}
         <div className="text-center mt-6 text-gray-500 text-sm">
-          <p>Guess Who — challenge friends</p>
+          <p>{t("footerTagline")}</p>
         </div>
       </div>
     </div>

@@ -15,20 +15,24 @@ import {
   declineChallenge,
   type ChallengeWithProfiles,
 } from "../lib/challenges";
+import { useLanguage } from "../contexts/LanguageContext";
 import type { Profile } from "../lib/types";
 
 interface ChallengeFriendModalProps {
   open: boolean;
   onClose: () => void;
   userId: string;
+  hasMinCharacters: boolean;
 }
 
 export function ChallengeFriendModal({
   open,
   onClose,
   userId,
+  hasMinCharacters,
 }: ChallengeFriendModalProps) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"friends" | "requests" | "challenges">("friends");
   const [friends, setFriends] = useState<Profile[]>([]);
   const [requests, setRequests] = useState<FriendRequestWithProfile[]>([]);
@@ -57,7 +61,7 @@ export function ChallengeFriendModal({
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : "Failed to load.";
-          setError(msg.includes("relation") && msg.includes("exist") ? "Database not set up. Run the Supabase migration (see README)." : `Failed to load: ${msg}`);
+          setError(msg.includes("relation") && msg.includes("exist") ? t("databaseNotSetUp") : `${t("failedToLoad")} ${msg}`);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -74,7 +78,7 @@ export function ChallengeFriendModal({
       onClose();
       navigate(`/waiting?challengeId=${id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not send challenge.");
+      setError(e instanceof Error ? e.message : t("couldNotSendChallenge"));
     } finally {
       setChallenging(null);
     }
@@ -92,7 +96,7 @@ export function ChallengeFriendModal({
       setFriends(friendsList);
       setRequests(requestsList);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not accept.");
+      setError(e instanceof Error ? e.message : t("couldNotAccept"));
     }
   };
 
@@ -113,7 +117,7 @@ export function ChallengeFriendModal({
       onClose();
       navigate(`/game?challengeId=${challengeId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not accept challenge.");
+      setError(e instanceof Error ? e.message : t("couldNotAcceptChallenge"));
     }
   };
 
@@ -137,7 +141,7 @@ export function ChallengeFriendModal({
       />
       <div className="relative w-full max-w-md bg-gray-900 rounded-3xl shadow-2xl border-2 border-[#FFD700] overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-[#8B0000] to-[#B22222] p-6 flex items-center justify-between border-b-2 border-[#FFD700]">
-          <h2 className="text-2xl font-bold text-white">Challenge Friend</h2>
+          <h2 className="text-2xl font-bold text-white">{t("challengeFriendTitle")}</h2>
           <button
             onClick={onClose}
             className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full active:scale-95"
@@ -154,7 +158,7 @@ export function ChallengeFriendModal({
                 : "bg-gray-800 text-gray-400 hover:text-white"
             }`}
           >
-            <span className="font-semibold">Friends List</span>
+            <span className="font-semibold">{t("friendsList")}</span>
           </button>
           <button
             onClick={() => setActiveTab("requests")}
@@ -164,7 +168,7 @@ export function ChallengeFriendModal({
                 : "bg-gray-800 text-gray-400 hover:text-white"
             }`}
           >
-            <span className="font-semibold">Requests</span>
+            <span className="font-semibold">{t("requests")}</span>
             {requests.length > 0 && (
               <span className="absolute top-2 right-4 bg-[#FFD700] text-[#8B0000] text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
                 {requests.length}
@@ -179,7 +183,7 @@ export function ChallengeFriendModal({
                 : "bg-gray-800 text-gray-400 hover:text-white"
             }`}
           >
-            <span className="font-semibold">Challenges</span>
+            <span className="font-semibold">{t("challengesTab")}</span>
             {incomingChallenges.length > 0 && (
               <span className="absolute top-2 right-4 bg-[#FFD700] text-[#8B0000] text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
                 {incomingChallenges.length}
@@ -199,10 +203,15 @@ export function ChallengeFriendModal({
             </div>
           ) : activeTab === "friends" ? (
             <div className="p-4 space-y-3">
+              {!hasMinCharacters && (
+                <div className="bg-amber-900/40 border border-amber-500/60 rounded-xl p-3 text-amber-200 text-sm text-center">
+                  {t("add24CharsToChallenge")}
+                </div>
+              )}
               {friends.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
-                  <p>No friends yet.</p>
-                  <p className="text-sm mt-2">Add friends to start challenging!</p>
+                  <p>{t("noFriendsYet")}</p>
+                  <p className="text-sm mt-2">{t("addFriendsToStart")}</p>
                 </div>
               ) : (
                 friends.map((friend) => (
@@ -224,15 +233,15 @@ export function ChallengeFriendModal({
                       )}
                       <div>
                         <p className="text-white font-semibold">{friend.username}</p>
-                        <p className="text-xs text-gray-400">Friend</p>
+                        <p className="text-xs text-gray-400">{t("friend")}</p>
                       </div>
                     </div>
                     <button
-                      onClick={() => handleChallenge(friend.id)}
-                      disabled={challenging === friend.id}
-                      className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 bg-gradient-to-r from-[#FFD700] to-[#FFC107] text-[#8B0000] hover:from-[#FFE135] hover:to-[#FFD700] shadow-lg hover:shadow-xl disabled:opacity-70"
+                      onClick={() => hasMinCharacters && handleChallenge(friend.id)}
+                      disabled={challenging === friend.id || !hasMinCharacters}
+                      className="px-4 py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 bg-gradient-to-r from-[#FFD700] to-[#FFC107] text-[#8B0000] hover:from-[#FFE135] hover:to-[#FFD700] shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      {challenging === friend.id ? "Sending…" : "Challenge"}
+                      {challenging === friend.id ? t("sending") : t("challengeButton")}
                     </button>
                   </div>
                 ))
@@ -242,7 +251,7 @@ export function ChallengeFriendModal({
             <div className="p-4 space-y-3">
               {incomingChallenges.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
-                  <p>No challenges yet.</p>
+                  <p>{t("noChallengesYet")}</p>
                 </div>
               ) : (
                 incomingChallenges.map((challenge) => (
@@ -264,9 +273,9 @@ export function ChallengeFriendModal({
                       )}
                       <div>
                         <p className="text-white font-semibold">
-                          {challenge.challenger_profile?.username ?? "Someone"} challenged you
+                          {challenge.challenger_profile?.username ?? t("someone")} {t("someoneChallengedYou")}
                         </p>
-                        <p className="text-xs text-gray-400">Accept to play</p>
+                        <p className="text-xs text-gray-400">{t("acceptToPlay")}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -275,14 +284,14 @@ export function ChallengeFriendModal({
                         className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                       >
                         <UserCheck size={18} />
-                        Accept
+                        {t("accept")}
                       </button>
                       <button
                         onClick={() => handleDeclineChallenge(challenge.id)}
                         className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                       >
                         <UserX size={18} />
-                        Decline
+                        {t("decline")}
                       </button>
                     </div>
                   </div>
@@ -293,7 +302,7 @@ export function ChallengeFriendModal({
             <div className="p-4 space-y-3">
               {requests.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
-                  <p>No pending friend requests.</p>
+                  <p>{t("noPendingRequests")}</p>
                 </div>
               ) : (
                 requests.map((request) => (
@@ -315,9 +324,9 @@ export function ChallengeFriendModal({
                       )}
                       <div>
                         <p className="text-white font-semibold">
-                          {request.from_profile?.username ?? "Unknown"}
+                          {request.from_profile?.username ?? t("unknown")}
                         </p>
-                        <p className="text-xs text-gray-400">wants to be friends</p>
+                        <p className="text-xs text-gray-400">{t("wantsToBeFriends")}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -326,14 +335,14 @@ export function ChallengeFriendModal({
                         className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                       >
                         <UserCheck size={18} />
-                        Accept
+                        {t("accept")}
                       </button>
                       <button
                         onClick={() => handleDecline(request.id)}
                         className="flex-1 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white py-2 rounded-lg font-semibold transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                       >
                         <UserX size={18} />
-                        Decline
+                        {t("decline")}
                       </button>
                     </div>
                   </div>

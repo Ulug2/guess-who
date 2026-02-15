@@ -1,9 +1,9 @@
-// import React from "react";  
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router";
 import { supabase } from "../lib/supabase";
 import { ensureProfile } from "../lib/profiles";
 import { AuthScreen } from "./AuthScreen";
+import { LanguageToggle } from "./LanguageToggle";
 
 export function AuthWrapper() {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null);
@@ -59,7 +59,14 @@ export function AuthWrapper() {
   }
 
   if (!user) {
-    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+    return (
+      <>
+        <div className="fixed top-4 right-4 z-50">
+          <LanguageToggle />
+        </div>
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
+      </>
+    );
   }
 
   return <Outlet context={{ user }} />;

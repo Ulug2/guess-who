@@ -3,9 +3,11 @@ import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getChallenge, cancelChallenge, subscribeToChallenge } from "../lib/challenges";
+import { useLanguage } from "../contexts/LanguageContext";
 
 export function WaitingScreen() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const challengeId = searchParams.get("challengeId");
   const [challengedName, setChallengedName] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function WaitingScreen() {
         if (!user || cancelled) return;
         const challenge = await getChallenge(challengeId, user.id);
         if (!challenge || cancelled) {
-          if (!challenge) setError("Challenge not found.");
+          if (!challenge) setError(t("challengeNotFound"));
           return;
         }
         if (challenge.status === "accepted") {
@@ -31,24 +33,24 @@ export function WaitingScreen() {
           return;
         }
         if (challenge.status === "declined" || challenge.status === "cancelled") {
-          setError(challenge.status === "declined" ? "Challenge was declined." : "Challenge was cancelled.");
+          setError(challenge.status === "declined" ? t("challengeDeclined") : t("challengeCancelled"));
           return;
         }
         const isChallenger = challenge.challenger_id === user.id;
         setChallengedName(
           isChallenger
-            ? (challenge.challenged_profile?.username ?? "Opponent")
-            : (challenge.challenger_profile?.username ?? "Opponent")
+            ? (challenge.challenged_profile?.username ?? t("someone"))
+            : (challenge.challenger_profile?.username ?? t("someone"))
         );
       } catch {
-        if (!cancelled) setError("Could not load challenge.");
+        if (!cancelled) setError(t("couldNotLoadChallenge"));
       }
     };
     load();
     const unsub = subscribeToChallenge(challengeId, (status) => {
       if (status === "accepted") navigate(`/game?challengeId=${challengeId}`, { replace: true });
-      if (status === "declined") setError("Challenge was declined.");
-      if (status === "cancelled") setError("Challenge was cancelled.");
+      if (status === "declined") setError(t("challengeDeclined"));
+      if (status === "cancelled") setError(t("challengeCancelled"));
     });
     return () => {
       cancelled = true;
@@ -86,14 +88,14 @@ export function WaitingScreen() {
         </div>
 
         <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-white">Waiting for Opponent</h1>
+          <h1 className="text-3xl font-bold text-white">{t("waitingForOpponent")}</h1>
           {challengedName && (
             <p className="text-xl text-gray-300">
-              Waiting for <span className="text-[#FFD700] font-semibold">{challengedName}</span> to accept…
+              {t("waitingForName")} <span className="text-[#FFD700] font-semibold">{challengedName}</span> {t("toAccept")}
             </p>
           )}
           {!challengedName && !error && (
-            <p className="text-xl text-gray-300">Loading…</p>
+            <p className="text-xl text-gray-300">{t("loading")}</p>
           )}
           {error && (
             <p className="text-red-300 font-semibold">{error}</p>
@@ -116,11 +118,11 @@ export function WaitingScreen() {
           onClick={handleCancel}
           className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-4 rounded-xl transition-all duration-200 active:scale-95 border-2 border-gray-700 hover:border-[#FFD700]/50 min-h-[56px]"
         >
-          Cancel Invitation
+          {t("cancelInvitation")}
         </button>
 
         <p className="text-gray-500 text-sm pt-4">
-          Your opponent will be notified of your challenge
+          {t("opponentNotified")}
         </p>
       </div>
 

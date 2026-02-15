@@ -1,4 +1,5 @@
 import { useState, useRef, memo } from "react";
+import { useLanguage } from "../contexts/LanguageContext";
 
 interface Character {
   id: string;
@@ -21,6 +22,7 @@ function CharacterCardInner({
   onFlip,
   onSelect,
 }: CharacterCardProps) {
+  const { t } = useLanguage();
   const [pressTimer, setPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
 
@@ -72,22 +74,24 @@ function CharacterCardInner({
           willChange: "transform",
         }}
       >
-        {/* Front: character face */}
+        {/* Front: character face – image and overlay are pointer-events: none so long-press only selects card */}
         <div
           className="absolute inset-0 rounded-xl overflow-hidden border-2 border-[#FFD700]/40 bg-gray-800 shadow-lg"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
           }}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <img
             src={character.imageUrl}
             alt={character.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-none select-none"
             loading="lazy"
             decoding="async"
+            draggable={false}
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6">
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6 pointer-events-none">
             <p className="text-white text-center font-semibold text-xs truncate drop-shadow">
               {character.name}
             </p>
@@ -133,7 +137,7 @@ function CharacterCardInner({
             {/* Bottom label */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-2">
               <p className="text-[#FFD700]/90 text-center font-semibold text-xs tracking-wide">
-                GUESS WHO
+                {t("guessWhoCard")}
               </p>
             </div>
           </div>
